@@ -1,0 +1,154 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 2.7 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated as
+% required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+\sortlist[entry]{none/global/}
+  \entry{neural-doodle}{online}{}
+    \list{organization}{1}{%
+      {Neural doodle}%
+    }
+    \verb{url}
+    \verb https://github.com/alexjc/neural-doodle
+    \endverb
+  \endentry
+
+  \entry{mari-o}{online}{}
+    \list{organization}{1}{%
+      {MarI/O}%
+    }
+    \verb{url}
+    \verb https://pastebin.com/ZZmSNaHX
+    \endverb
+  \endentry
+
+  \entry{alpha-go}{article}{}
+    \list{organization}{1}{%
+      {Google}%
+    }
+    \field{labeltitlesource}{title}
+    \field{title}{Mastering the Game of Go with deep Neural Networks and Tree
+  Search}
+  \endentry
+
+  \entry{tensor-flow}{online}{}
+    \list{organization}{1}{%
+      {TensorFlow}%
+    }
+    \verb{url}
+    \verb https://www.tensorflow.org/
+    \endverb
+  \endentry
+
+  \entry{scikit-learn}{online}{}
+    \list{organization}{1}{%
+      {scikit-learn}%
+    }
+    \verb{url}
+    \verb http://scikit-learn.org
+    \endverb
+  \endentry
+
+  \entry{theano}{online}{}
+    \list{organization}{1}{%
+      {theano}%
+    }
+    \verb{url}
+    \verb http://deeplearning.net/software/theano/
+    \endverb
+  \endentry
+
+  \entry{coding-train}{online}{}
+    \list{organization}{1}{%
+      {The Coding Train}%
+    }
+    \verb{url}
+    \verb https://www.youtube.com/channel/UCvjgXvBlbQiydffZU7m1_aw
+    \endverb
+  \endentry
+
+  \entry{siraj}{online}{}
+    \name{author}{1}{}{%
+      {{hash=RS}{%
+         family={Raval},
+         family_i={R\bibinitperiod},
+         given={Siraj},
+         given_i={S\bibinitperiod},
+      }}%
+    }
+    \strng{namehash}{RS1}
+    \strng{fullhash}{RS1}
+    \field{labelnamesource}{author}
+    \verb{url}
+    \verb https://www.youtube.com/channel/UCWN3xxRkmTPmbKwht9FuE5A
+    \endverb
+  \endentry
+
+  \entry{stanford-gol}{online}{}
+    \list{organization}{1}{%
+      {Stanford University}%
+    }
+    \field{labeltitlesource}{title}
+    \field{title}{Conways Game of Life}
+    \verb{url}
+    \verb http://web.stanford.edu/~cdebs/GameOfLife/
+    \endverb
+  \endentry
+
+  \entry{toronto-go-1}{article}{}
+    \name{author}{1}{}{%
+      {{hash=AKGEHIS}{%
+         family={Alex\bibnamedelima Krizhevsky},
+         family_i={A\bibinitperiod\bibinitdelim K\bibinitperiod},
+         suffix={Ilya\bibnamedelima Sutskever},
+         suffix_i={I\bibinitperiod\bibinitdelim S\bibinitperiod},
+         given={Geoffrey E.\bibnamedelima Hinton},
+         given_i={G\bibinitperiod\bibinitdelim E\bibinitperiod\bibinitdelim
+  H\bibinitperiod},
+      }}%
+    }
+    \list{organization}{1}{%
+      {University of Toronto}%
+    }
+    \strng{namehash}{AKISGEH1}
+    \strng{fullhash}{AKISGEH1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{ImageNet Classification with Deep Convolutaional Neural
+  Networks}
+  \endentry
+
+  \entry{toronto-go-2}{article}{}
+    \name{author}{1}{}{%
+      {{hash=MCJ}{%
+         family={Maddison},
+         family_i={M\bibinitperiod},
+         given={Chris\bibnamedelima J.},
+         given_i={C\bibinitperiod\bibinitdelim J\bibinitperiod},
+      }}%
+    }
+    \list{organization}{1}{%
+      {University of Toronto}%
+    }
+    \strng{namehash}{MCJ1}
+    \strng{fullhash}{MCJ1}
+    \field{labelnamesource}{author}
+    \field{labeltitlesource}{title}
+    \field{title}{Move evaluation in Go using deep convolutional neural
+  networks}
+  \endentry
+\endsortlist
+\endinput

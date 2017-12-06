@@ -1,0 +1,30 @@
+\boolfalse {citerequest}\boolfalse {citetracker}\boolfalse {pagetracker}\boolfalse {backtracker}\relax 
+\select@language {polish}
+\contentsline {chapter}{\numberline {1}Wprowadzenie}{7}
+\contentsline {section}{\numberline {1.1}Sieci neuronowe}{7}
+\contentsline {section}{\numberline {1.2}AlphaGo}{7}
+\contentsline {section}{\numberline {1.3},,Gra w \IeC {\.z}ycie''}{7}
+\contentsline {section}{\numberline {1.4}Cel pracy}{8}
+\contentsline {chapter}{\numberline {2}Wst\IeC {\k e}p teoretyczny}{9}
+\contentsline {section}{\numberline {2.1},,Gra w \IeC {\.z}ycie''}{9}
+\contentsline {subsection}{\numberline {2.1.1}Zasady}{9}
+\contentsline {subsection}{\numberline {2.1.2}Przyj\IeC {\k e}te ograniczenia}{9}
+\contentsline {section}{\numberline {2.2}Sieci neuronowe}{9}
+\contentsline {subsection}{\numberline {2.2.1}Warstwy ukryte}{9}
+\contentsline {subsection}{\numberline {2.2.2}Warstwy konwolucyjne}{9}
+\contentsline {subsection}{\numberline {2.2.3}Metody uczenia}{9}
+\contentsline {subsection}{\numberline {2.2.4}Rodzaje funkcji aktywacji}{9}
+\contentsline {chapter}{\numberline {3}Analiza problemu}{11}
+\contentsline {section}{\numberline {3.1}Okre\IeC {\'s}lenie funkcji celu}{11}
+\contentsline {section}{\numberline {3.2}Dob\IeC {\'o}r sieci neuronowej}{11}
+\contentsline {subsection}{\numberline {3.2.1}Okre\IeC {\'s}lenie wej\IeC {\'s}\IeC {\'c} i wyj\IeC {\'s}\IeC {\'c}}{11}
+\contentsline {subsection}{\numberline {3.2.2}Topologia sieci}{11}
+\contentsline {subsection}{\numberline {3.2.3}Dob\IeC {\'o}r funkcji aktywacji}{11}
+\contentsline {section}{\numberline {3.3}Dob\IeC {\'o}r metody uczenia}{11}
+\contentsline {section}{\numberline {3.4}Metoda wizualizacji}{11}
+\contentsline {chapter}{\numberline {4}Prezentacja wynik\IeC {\'o}w}{13}
+\contentsline {section}{\numberline {4.1}Post\IeC {\k e}py w uczeniu}{13}
+\contentsline {section}{\numberline {4.2}Osi\IeC {\k a}gni\IeC {\k e}cia nauczonej sieci neuronowej}{13}
+\contentsline {chapter}{\numberline {5}Podsumowanie}{15}
+\contentsline {section}{\numberline {5.1}Osi\IeC {\k a}gni\IeC {\k e}te wyniki}{15}
+\contentsline {section}{\numberline {5.2}Mo\IeC {\.z}liwo\IeC {\'s}\IeC {\'c} rozbudowania pracy}{15}

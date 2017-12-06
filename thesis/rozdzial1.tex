@@ -1,0 +1,61 @@
+\chapter{Wprowadzenie}
+\label{cha:wprowadzenie}
+    \section{Sieci neuronowe}
+        Wraz z postępem w mocy obliczeniowej na popularności zyskały 
+        sieci neuronowe. Ich zdolność do wykrywania wzorów i 
+        prawidłowości znalazła zastosowanie między innymi w analizie
+        obrazów \cite{neural-doodle}, rozpoznawaniu mowy oraz w sztucznej
+        inteligencji prostych \cite{mari-o} oraz bardziej zaawansowanych
+        \cite{alpha-go} botów. Przy odpowiednim procesie uczenia sieć
+        neuronowa jest w stanie w znacznym stopniu przewyższyć eksperta 
+        w danej dziedzinie \cite{alpha-go}.
+        \\ \\
+        Dodatkowym elementem przyśpieszającym rozwój sieci neuronowych
+        jest powszechna dostępność zaawansowanych narzędzi takich jak 
+        TensorFlow \cite{tensor-flow}, scikit-learn \cite{scikit-learn},
+        Theano \cite{theano}. Tworzą one pewien poziom abstrakcji, 
+        zarówno zmniejszając próg wejścia jak i pozwalając skupić się na 
+        strukturze sieci neuronowej, zamiast na jej implementacji.
+        \\ \\
+        Obydwa te czynniki poskutkowały tym, że oprócz profesjonalnych
+        zastosowań takich jak systemy rekomendacji portali
+        społecznościowych powstało wiele amatorskich projektów o 
+        otwartym kodzie źródłowym \cite{neural-doodle, mari-o, 
+        coding-train} oraz zasobów wiedzy \cite{siraj, coding-train}.
+
+    \section{AlphaGo}
+        Pewnym przełomem w rozwoju sieci neuronowych był program AlphaGo,
+        który wraz z postępem nauczania przewyższył najlepszego na 
+        świecie gracza w Go. Dokonano tego wykorzystując głęboką sieć
+        neuronową z warstwami konwolucyjnymi. Zastosowane algorytmy
+        pozwalają na to aby AlphaGo ulegało samodoskonaleniu poprzez
+        grę ze sobą.
+
+    \section{,,Gra w życie''}
+        ,,Gra w życie''\cite{stanford-gol} jest jednym z najbardziej 
+        znanych automatów komórkowych posiadającym kopmletność Turinga.
+        Jest to gra o stosunkowo prostych zasadach, które zastosowane
+        dla wielu komórek skutkują w skomplikowanych, trudnych do 
+        przewidzenia zachowaniach.
+        \\ \\
+        Gra występuje w wielu wariantach, między innymi z planszą
+        skończoną, nieskończoną oraz zapętloną na krawędziach.
+
+    \section{Cel pracy}
+        Praca ma na celu skonstruowanie głębokiej sieci neuronowej, 
+        która będzie w stanie dodawać komórki do planszy ,,Gry w życie''
+        w taki sposób aby liczba komórek mieściła się w zadanym
+        przedziale. Liczba komórek jakie mogą zostać dodane jest
+        ograniczona od góry. 
+        \\ \\
+        Pod wieloma względami problemem podobnym do sieci neuronowej
+        grającej zgodnie z tymi zasadami są sieci neurnowe nauczone gry
+        w Go. Podobnie jak "Gra w życie", Go jest rozgrywane na planszy
+        mającej postać siatki, a wynikiem analizy dokonanej przez sieć 
+        neuronową jest położenie, gdzie ma zostać wykonany ruch ze
+        strony sztucznej inteligencji \cite{alpha-go, toronto-go-1,
+        toronto-go-2}.
+        \\ \\
+        Praca ta traktuje o zastosowaniu podobnych technik do nauczenia
+        sieci neuronowej sterowania liczebnością komórek w ,,Grze w 
+        życie''.
