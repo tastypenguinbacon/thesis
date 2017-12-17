@@ -18,30 +18,30 @@ def create_cells(box_size, width, height):
     return result
 
 
-class GameOfLife(Canvas):
+class GameOfLifeBoard(Canvas):
     pixels_per_box = 16
     inter_frame_time = 10
 
-    def __init__(self, parent, dimension, game, mutator=lambda x: None):
-        super().__init__(parent, height=dimension.height * GameOfLife.pixels_per_box,
-                         width=dimension.width * GameOfLife.pixels_per_box)
+    def __init__(self, parent, dimension, game, mutator=lambda x: x):
+        super().__init__(parent, height=dimension.height * GameOfLifeBoard.pixels_per_box,
+                         width=dimension.width * GameOfLifeBoard.pixels_per_box)
         self.game = game
         self.grid(row=1, column=1)
-        self.cells = create_cells(GameOfLife.pixels_per_box,
-                                  dimension.width * GameOfLife.pixels_per_box,
-                                  dimension.height * GameOfLife.pixels_per_box)
+        self.cells = create_cells(GameOfLifeBoard.pixels_per_box,
+                                  dimension.width * GameOfLifeBoard.pixels_per_box,
+                                  dimension.height * GameOfLifeBoard.pixels_per_box)
         self.boxes = self.cells
         self.prev = set()
         self.mutator = mutator
         self.cells = []
 
     def tick(self):
-        next(self.game)
+        self.game = self.game.next()
         cells = len(self.game)
         self.cells.append(cells)
-        self.mutator(self.game)
+        self.game = self.mutator(self.game)
         self.set_squares(self.game.board)
-        self.after(GameOfLife.inter_frame_time, self.tick)
+        self.after(GameOfLifeBoard.inter_frame_time, self.tick)
 
     def set_squares(self, cells):
         self.delete('all')

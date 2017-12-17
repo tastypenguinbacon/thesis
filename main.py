@@ -1,45 +1,42 @@
 from tkinter import Tk
 
-from game_of_life import GameBoard, Box
-from gui import GameOfLife, Dim
+from game_of_life import GameOfLife, FocusArea
 import numpy as np
 import matplotlib.pyplot as plt
 
-width, height = 128, 128
-brd = GameBoard(Box(width, height))
+from neural_network import neural_net, decode, random_board
+
+from gui import GameOfLifeBoard, Dim
+
+width, height = 16, 16
+focus_area = FocusArea(max_col=width, max_row=height)
+
+brd = GameOfLife(FocusArea(width, height), random_board())
 
 for i in range(height):
-    brd.add((i, i))
-    brd.add((height - i - 1, i))
-    brd.add((i, height // 2))
-    brd.add((i, height // 2 - 1))
-    brd.add((width // 2, i))
-    brd.add((width // 2 - 1, i))
+    brd = brd.add((i, i))
+    brd = brd.add((height - i - 1, i))
+    brd = brd.add((i, height // 2))
+    brd = brd.add((i, height // 2 - 1))
+    brd = brd.add((width // 2, i))
+    brd = brd.add((width // 2 - 1, i))
 
-GameOfLife.pixels_per_box = 16
+GameOfLifeBoard.pixels_per_box = 10
+GameOfLifeBoard.inter_frame_time = 250
+
 
 
 class Mutator:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.ctr = 0
-
     def __call__(self, brd):
-        for i in range(self.width):
-            if np.random.choice([True] + [False] * 178):
-                brd.add((self.ctr, i))
-            if np.random.choice([True] + [False] * 48):
-                brd.add((i, self.ctr))
+        action = neural_net.predict(np.array(brd.to_numpy_array()))[0]
+        return brd.add(decode(action))
 
-        self.ctr += 1
-        self.ctr %= width
 
 
 root = Tk()
 root.title('Conway\'s game of Life')
 
-canv = GameOfLife(root, Dim(height, width), brd)  # , Mutator(width, height))
+canv = GameOfLifeBoard(root, Dim(height, width), brd)  # , Mutator(width, height))
 
 canv.tick()
 
