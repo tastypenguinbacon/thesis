@@ -46,7 +46,7 @@ class SingleNet:
         neural_net.add(Conv2D(1024, (3, 3), activation='relu', bias_initializer='ones'))
         neural_net.add(Flatten())
 
-        for i in range(2):
+        for i in range(6):
             neural_net.add(Dense(256, activation='relu', bias_initializer='ones'))
             neural_net.add(Dropout(0.5))
         neural_net.add(Dense(size, activation='linear'))
@@ -55,6 +55,7 @@ class SingleNet:
 
         self.neural_net = neural_net
         self.replay_memory = []
+
         self.i = 0
 
     def predict(self, board):
@@ -70,6 +71,11 @@ class SingleNet:
         self.neural_net.save_weights(name)
 
     def remember(self, state, reward, action, next_state):
+        if np.all(state == next_state):
+            if reward < 0:
+                reward = -10000
+            else:
+                reward = 10000
         self.replay_memory.append((state, reward, action, next_state))
 
     def replay(self):
@@ -79,15 +85,17 @@ class SingleNet:
         inputs, expected = [], []
         random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 256))
         prev_sample = self.replay_memory[-min(128, len(self.replay_memory)):]
+        print(len(self.replay_memory))
         for s, r, a, ns in random_batch + prev_sample:
             inputs.append(s)
-            prediction = self.neural_net.predict(ns)[0]
+            prediction = self.neural_net.predict(np.array([ns]))[0]
             best_prediction = prediction.max()
             e = r + gamma * best_prediction
             prediction[int(a)] = e
             expected.append(prediction)
 
-        self.neural_net.fit(np.array(inputs), np.array(expected))
+        if len(inputs) != 0:
+            self.neural_net.fit(np.array(inputs), np.array(expected))
 
 
 def random_board(size=None):
@@ -120,16 +128,17 @@ for i, nnet_pair in enumerate(nets):
 
 if __name__ == '__main__':
     for i in range(number_of_epochs):
+        exp_rate = exploration_rate
         if np.random.rand() < 0.9:
             board = GameOfLife(focus_area)
         else:
             board = GameOfLife(focus_area, random_board())
 
         for j in range(game_iterations):
-            if np.random.rand() < exploration_rate:
+            if np.random.rand() < exp_rate:
                 action = tuple(random_board(len(nets)))
-                exploration_rate *= 0.9999
-                exploration_rate = max(exploration_rate, min_exploration_rate)
+                exp_rate *= 0.99
+                exp_rate = max(exp_rate, min_exploration_rate)
             else:
                 action = []
                 temp_board = board
@@ -148,8 +157,7 @@ if __name__ == '__main__':
             for (row_nnet, col_nnet), a in zip(nets, action):
                 numpy_board = next_board.to_numpy_array()
                 next_board = next_board.add(a)
-                for_optimization = np.array([next_board.to_numpy_array()])
-                short_time_mem.append((numpy_board, a, for_optimization))
+                short_time_mem.append((numpy_board, a, next_board.to_numpy_array()))
             # print("-" * 16)
             # print(next_board)
             # print("-" * 16)
