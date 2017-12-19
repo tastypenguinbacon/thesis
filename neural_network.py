@@ -26,6 +26,8 @@ class Reward:
     def __call__(self, brd, nxt):
         count = len(brd)
         count_next = len(nxt)
+        if count < count_next < self.min_cells or count > count_next > self.max_cells:
+            return - (count_next - self.min_cells) * (count_next - self.max_cells) + (count - count_next) ** 2
         return - (count_next - self.min_cells) * (count_next - self.max_cells)
 
 
@@ -71,12 +73,8 @@ class SingleNet:
         self.neural_net.save_weights(name)
 
     def remember(self, state, reward, action, next_state):
-        if np.all(state == next_state):
-            if reward < 0:
-                reward = -100000
-            else:
-                reward = 100000
-        self.replay_memory.append((state, reward, action, next_state))
+        if np.all(state != next_state) or reward > 0:
+            self.replay_memory.append((state, reward, action, next_state))
 
     def replay(self):
         self.i += 1
