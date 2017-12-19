@@ -73,9 +73,9 @@ class SingleNet:
     def remember(self, state, reward, action, next_state):
         if np.all(state == next_state):
             if reward < 0:
-                reward = -10000
+                reward = -100000
             else:
-                reward = 10000
+                reward = 100000
         self.replay_memory.append((state, reward, action, next_state))
 
     def replay(self):
