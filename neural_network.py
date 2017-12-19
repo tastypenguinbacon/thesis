@@ -12,7 +12,7 @@ width, height = 16, 16
 focus_area = FocusArea(max_col=width, max_row=height)
 number_of_epochs = 1000
 game_iterations = 512
-exploration_rate = 1
+exploration_rate = 0.8
 min_exploration_rate = 0.01
 learning_rate = 0.5
 gamma = 0.9
@@ -27,8 +27,12 @@ class Reward:
         count = len(brd)
         count_next = len(nxt)
         if count < count_next < self.min_cells or count > count_next > self.max_cells:
-            return - (count_next - self.min_cells) * (count_next - self.max_cells) + (count - count_next) ** 2
-        return - (count_next - self.min_cells) * (count_next - self.max_cells)
+            return np.abs(count_next - count)
+        if self.min_cells < count_next < self.max_cells:
+            return 100
+        if count_next - count == 0:
+            return -1
+        return -np.abs(count_next - count) * 1
 
 
 class SingleNet:
@@ -76,13 +80,10 @@ class SingleNet:
         self.replay_memory.append((state, reward, action, next_state))
 
     def replay(self):
-        self.i += 1
-        if self.i % 128 != 0:
-            return
         inputs, expected = [], []
-        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 256))
-        prev_sample = self.replay_memory[-min(128, len(self.replay_memory)):]
-        print(len(self.replay_memory))
+        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 128))
+        prev_sample = self.replay_memory[-min(64, len(self.replay_memory)):]
+
         for s, r, a, ns in random_batch + prev_sample:
             inputs.append(s)
             prediction = self.neural_net.predict(np.array([ns]))[0]
@@ -92,6 +93,7 @@ class SingleNet:
             expected.append(prediction)
 
         if len(inputs) != 0:
+            print(len(self.replay_memory))
             self.neural_net.fit(np.array(inputs), np.array(expected))
 
 
@@ -103,74 +105,50 @@ def random_board(size=None):
 
 
 def decode(outs):
-    outs, = outs
-    indices = np.argmax(outs)  # [-outputs_to_consider:]
-    row, col = indices // width, indices % width
+    # outs, = outs
+    row, col = outs // width, outs % width
     return row, col
 
 
-nets = [
-    (SingleNet(height + 1), SingleNet(width + 1)),
-    (SingleNet(height + 1), SingleNet(width + 1)),
-    (SingleNet(height + 1), SingleNet(width + 1)),
-    (SingleNet(height + 1), SingleNet(width + 1)),
-    (SingleNet(height + 1), SingleNet(width + 1))
-]
+def encode(action):
+    return action[0] * width + action[1]
+
+
+nnet = SingleNet(width * height + 1)
 
 reward = Reward(55, 60)
 
-for i, nnet_pair in enumerate(nets):
-    nnet_pair[0].load('row' + str(i) + '.be')
-    nnet_pair[1].load('col' + str(i) + '.be')
-
-if __name__ == '__main__':
-    for i in range(number_of_epochs):
-        exp_rate = exploration_rate
-        if np.random.rand() < 0.9:
-            board = GameOfLife(focus_area)
-        else:
+with open('cudo.json', 'a') as out_file:
+    nnet.load('q_nnet.be')
+    if __name__ == '__main__':
+        for i in range(number_of_epochs):
+            exp_rate = exploration_rate
             board = GameOfLife(focus_area, random_board())
+            print('[', end='', file=out_file, flush=True)
+            for j in range(game_iterations):
+                if np.random.rand() < exp_rate:
+                    action = tuple(random_board(1))[0]
+                    exp_rate *= 0.99
+                    exp_rate = max(exp_rate, min_exploration_rate)
+                    is_rand = True
+                else:
+                    cudo = nnet.predict(board)
+                    action = decode(cudo)
+                    print(cudo, action)
+                    is_rand = False
+                next_board = board.add(action).next()
+                # print(len(board), end=',', file=out_file)
+                # print("-" * 16)
+                # print(board)
+                # print("-" * 16)
+                # print(next_board)
+                # print("-" * 16)
+                r = reward(board, next_board)
+                print((i, j), len(board), action, r, is_rand, sep='\t\t')
+                nnet.remember(board.to_numpy_array(), r, encode(action), next_board.to_numpy_array())
+                board = next_board
+                # print(len(board), r, sep='\t')
+                nnet.replay()
 
-        for j in range(game_iterations):
-            if np.random.rand() < exp_rate:
-                action = tuple(random_board(len(nets)))
-                exp_rate *= 0.99
-                exp_rate = max(exp_rate, min_exploration_rate)
-            else:
-                action = []
-                temp_board = board
-                for row_nnet, col_nnet in nets:
-                    a = (row_nnet.predict(temp_board), col_nnet.predict(temp_board))
-                    action.append(a)
-                    temp_board = temp_board.add(a)
-
-            print((i, j), len(board), action, sep='\t\t')
-            # print("-" * 16)
-            # print(board)
-            next_board = board
-
-            short_time_mem = []
-
-            for (row_nnet, col_nnet), a in zip(nets, action):
-                numpy_board = next_board.to_numpy_array()
-                next_board = next_board.add(a)
-                short_time_mem.append((numpy_board, a, next_board.to_numpy_array()))
-            # print("-" * 16)
-            # print(next_board)
-            # print("-" * 16)
-            next_board = next_board.next()
-            r = reward(board, next_board)
-            print(len(board), r, sep='\t')
-            board = next_board
-
-            for (row_nnet, col_nnet), (prev_board, act, next_board) in zip(nets, short_time_mem):
-                row_nnet.remember(prev_board, r, act[0], next_board)
-                col_nnet.remember(prev_board, r, act[1], next_board)
-
-            for row_nnet, col_nnet in nets:
-                row_nnet.replay()
-                col_nnet.replay()
-
-        for i, nnet_pair in enumerate(nets):
-            nnet_pair[0].save('row' + str(i) + '.be')
-            nnet_pair[1].save('col' + str(i) + '.be')
+            print('],', file=out_file, flush=True)
+            nnet.save('q_nnet.be')
