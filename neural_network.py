@@ -1,7 +1,6 @@
 import os
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
 from keras import Sequential
 from keras.layers import Conv2D, Flatten, Dense, Dropout
@@ -9,16 +8,15 @@ from keras.optimizers import Adam
 
 from game_of_life import FocusArea, GameOfLife
 
-width, height = 32, 32
+width, height = 16, 16
 focus_area = FocusArea(max_col=width, max_row=height)
 number_of_epochs = 1000
-game_iterations = 100
+game_iterations = 512
 exploration_rate = 1
-min_exploration_rate = 0.2
-
-outputs_to_consider = 1
+min_exploration_rate = 0.01
+learning_rate = 0.5
+alpha = 0.9
 gamma = 0.5
-replay_memory = []
 
 
 class Reward:
@@ -26,31 +24,71 @@ class Reward:
         self.min_cells = min_cells
         self.max_cells = max_cells
 
-    def __call__(self, brd):
+    def __call__(self, brd, nxt):
         count = len(brd)
-        return 0.01 * (count - self.min_cells) * (count - self.max_cells)
+        count_next = len(nxt)
+        return - (count_next - self.min_cells) * (count_next - self.max_cells)
 
 
-neural_net = Sequential()
-neural_net.add(Conv2D(filters=32, kernel_size=(5, 5), activation='relu', input_shape=(width, height, 1)))
-print(neural_net.input_shape)
-neural_net.add(Dropout(0.5))
-neural_net.add(Conv2D(64, (3, 3), activation='relu'))
-neural_net.add(Dropout(0.5))
-neural_net.add(Conv2D(128, (3, 3), activation='relu'))
-neural_net.add(Dropout(0.5))
-neural_net.add(Conv2D(256, (3, 3), activation='relu'))
-neural_net.add(Flatten())
+class SingleNet:
+    def __init__(self, size):
+        neural_net = Sequential()
+        neural_net.add(Conv2D(filters=32, kernel_size=(5, 5), activation='relu', input_shape=(width, height, 1),
+                              bias_initializer='ones'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(64, (3, 3), activation='relu', bias_initializer='ones'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(128, (3, 3), activation='relu', bias_initializer='ones'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(256, (3, 3), activation='relu', bias_initializer='ones'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(512, (3, 3), activation='relu', bias_initializer='ones'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(1024, (3, 3), activation='relu', bias_initializer='ones'))
+        neural_net.add(Flatten())
 
-neural_net.add(Dense(512, activation='relu'))
-neural_net.add(Dropout(0.5))
-neural_net.add(Dense(512, activation='relu'))
-neural_net.add(Dropout(0.5))
-neural_net.add(Dense(512, activation='relu'))
-neural_net.add(Dropout(0.5))
-neural_net.add(Dense(width * height + 1, activation='linear'))
+        for i in range(2):
+            neural_net.add(Dense(256, activation='relu', bias_initializer='ones'))
+            neural_net.add(Dropout(0.5))
+        neural_net.add(Dense(size, activation='linear'))
 
-neural_net.compile(optimizer=Adam(), loss='mse')
+        neural_net.compile(optimizer=Adam(), loss='mse')
+
+        self.neural_net = neural_net
+        self.replay_memory = []
+        self.i = 0
+
+    def predict(self, board):
+        neural_net_in = np.array([board.to_numpy_array()])
+        neural_net_out = self.neural_net.predict(neural_net_in)[0]
+        return np.argmax(neural_net_out)
+
+    def load(self, name):
+        if os.path.isfile(name):
+            self.neural_net.load_weights(name)
+
+    def save(self, name):
+        self.neural_net.save_weights(name)
+
+    def remember(self, state, reward, action, next_state):
+        self.replay_memory.append((state, reward, action, next_state))
+
+    def replay(self):
+        self.i += 1
+        if self.i % 128 != 0:
+            return
+        inputs, expected = [], []
+        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 256))
+        prev_sample = self.replay_memory[-min(128, len(self.replay_memory)):]
+        for s, r, a, ns in random_batch + prev_sample:
+            inputs.append(s)
+            prediction = self.neural_net.predict(ns)[0]
+            best_prediction = prediction.max()
+            e = (1 - alpha) * best_prediction + alpha * (r + gamma * best_prediction)
+            prediction[int(a)] = e
+            expected.append(prediction)
+
+        self.neural_net.fit(np.array(inputs), np.array(expected))
 
 
 def random_board(size=None):
@@ -67,49 +105,68 @@ def decode(outs):
     return row, col
 
 
-reward = Reward(60, 55)
+nets = [
+    (SingleNet(height + 1), SingleNet(width + 1)),
+    (SingleNet(height + 1), SingleNet(width + 1)),
+    (SingleNet(height + 1), SingleNet(width + 1)),
+    (SingleNet(height + 1), SingleNet(width + 1)),
+    (SingleNet(height + 1), SingleNet(width + 1))
+]
 
-if os.path.isfile('weights.be'):
-    neural_net.load_weights('weights.be')
+reward = Reward(55, 60)
+
+for i, nnet_pair in enumerate(nets):
+    nnet_pair[0].load('row' + str(i) + '.be')
+    nnet_pair[1].load('col' + str(i) + '.be')
 
 if __name__ == '__main__':
     for i in range(number_of_epochs):
-        print('epoch', i)
-        board = GameOfLife(focus_area, random_board())
+        if np.random.rand() < 0.9:
+            board = GameOfLife(focus_area)
+        else:
+            board = GameOfLife(focus_area, random_board())
 
         for j in range(game_iterations):
             if np.random.rand() < exploration_rate:
-                action = tuple(random_board(outputs_to_consider))[0]
+                action = tuple(random_board(len(nets)))
                 exploration_rate *= 0.9999
                 exploration_rate = max(exploration_rate, min_exploration_rate)
-                is_random = True
             else:
-                neural_net_in = np.array([board.to_numpy_array()])
-                neural_net_out = neural_net.predict(neural_net_in)
-                action = decode(neural_net_out)
-                is_random = False
+                action = []
+                temp_board = board
+                for row_nnet, col_nnet in nets:
+                    a = (row_nnet.predict(temp_board), col_nnet.predict(temp_board))
+                    action.append(a)
+                    temp_board = temp_board.add(a)
 
-            print((i, j), len(board), action, is_random, sep='\t\t')
-            next_board = board.add(action).next()
-            r = reward(next_board)
+            print((i, j), len(board), action, sep='\t\t')
+            # print("-" * 16)
+            # print(board)
+            next_board = board
 
-            for_optimization = np.array([next_board.to_numpy_array()])
-            replay_memory.append((board.to_numpy_array(), r, action[0] * width + action[1], for_optimization))
+            short_time_mem = []
+
+            for (row_nnet, col_nnet), a in zip(nets, action):
+                numpy_board = next_board.to_numpy_array()
+                next_board = next_board.add(a)
+                for_optimization = np.array([next_board.to_numpy_array()])
+                short_time_mem.append((numpy_board, a, for_optimization))
+            # print("-" * 16)
+            # print(next_board)
+            # print("-" * 16)
+            next_board = next_board.next()
+            r = reward(board, next_board)
+            print(len(board), r, sep='\t')
             board = next_board
 
-            inputs, expected = [], []
-            random_batch = random.sample(replay_memory, min(len(replay_memory), 256))
-            previous_batch = replay_memory[max(-len(replay_memory), -16):]
+            for (row_nnet, col_nnet), (prev_board, act, next_board) in zip(nets, short_time_mem):
+                row_nnet.remember(prev_board, r, act[0], next_board)
+                col_nnet.remember(prev_board, r, act[1], next_board)
 
-            for s, r, a, ns in random_batch + previous_batch:
-                inputs.append(s)
-                prediction = neural_net.predict(ns)[0]
-                e = r + gamma * prediction.max()
-                prediction[int(a)] = e
-                expected.append(prediction)
+            for row_nnet, col_nnet in nets:
+                row_nnet.replay()
+                col_nnet.replay()
 
-            neural_net.train_on_batch(np.array(inputs), np.array(expected))
-
-        if i % 10 == 0:
-            neural_net.save_weights('weights.be')
-    plt.show()
+        for i, nnet_pair in enumerate(nets):
+            nnet_pair[0].save('row' + str(i) + '.be')
+            nnet_pair[1].save('col' + str(i) + '.be')
