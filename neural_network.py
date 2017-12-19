@@ -73,8 +73,7 @@ class SingleNet:
         self.neural_net.save_weights(name)
 
     def remember(self, state, reward, action, next_state):
-        if np.all(state != next_state) or reward > 0:
-            self.replay_memory.append((state, reward, action, next_state))
+        self.replay_memory.append((state, reward, action, next_state))
 
     def replay(self):
         self.i += 1
