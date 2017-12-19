@@ -15,8 +15,7 @@ game_iterations = 512
 exploration_rate = 1
 min_exploration_rate = 0.01
 learning_rate = 0.5
-alpha = 0.9
-gamma = 0.5
+gamma = 0.9
 
 
 class Reward:
@@ -84,7 +83,7 @@ class SingleNet:
             inputs.append(s)
             prediction = self.neural_net.predict(ns)[0]
             best_prediction = prediction.max()
-            e = (1 - alpha) * best_prediction + alpha * (r + gamma * best_prediction)
+            e = r + gamma * best_prediction
             prediction[int(a)] = e
             expected.append(prediction)
 
