@@ -8,11 +8,11 @@ from keras.layers import Conv2D, Flatten, Dense, Dropout, LeakyReLU
 
 from game_of_life import FocusArea, GameOfLife
 
-width, height = 8, 8
+width, height = 16, 16
 focus_area = FocusArea(max_col=width, max_row=height)
 number_of_epochs = 10000
 game_iterations = 1000
-exploration_rate = 0.2
+exploration_rate = 0.1
 cells_to_add = 5
 gamma = 0.5
 
@@ -27,26 +27,24 @@ class Reward:
         count_next = len(nxt)
         count = len(bad)
         if count < count_next < self.min_cells or count > count_next > self.max_cells:
-            return np.abs(count_next - count)
+            return np.abs(count_next - count) * 10
         if self.min_cells < count_next < self.max_cells:
-            return - (count_next - self.min_cells) * (count_next - self.max_cells)
-        return -np.abs(count_next - count)
+            return - (count_next - self.min_cells) * (count_next - self.max_cells) * 10
+        return -np.abs(count_next - count) * 10
 
 
 class SingleNet:
     def __init__(self, size):
         neural_net = Sequential()
-        neural_net.add(Conv2D(filters=32, kernel_size=(3, 3), input_shape=(width, height, 1)))
-        neural_net.add(LeakyReLU())
+        neural_net.add(Conv2D(filters=32, kernel_size=(3, 3), input_shape=(width, height, 1), activation='relu'))
         neural_net.add(Dropout(0.5))
-        neural_net.add(Conv2D(64, (3, 3)))
-        neural_net.add(LeakyReLU())
-        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(64, (3, 3), activation='relu'))
         neural_net.add(Flatten())
+        # neural_net.add(Dropout(0.5))
+        # neural_net.add(Flatten())
 
-        for i in range(1):
-            neural_net.add(Dense(128, bias_initializer='ones'))
-            neural_net.add(LeakyReLU())
+        for i in range(5):
+            neural_net.add(Dense(64, bias_initializer='ones', activation='relu'))
             neural_net.add(Dropout(0.5))
         neural_net.add(Dense(size, activation='linear'))
 
@@ -65,12 +63,13 @@ class SingleNet:
         print('min, max: ', np.min(neural_net_out), np.max(neural_net_out))
         return np.argmax(neural_net_out)
 
-    def predict_batch(self, board, size):
+    def predict_batch(self, board, size, print_out=False):
         neural_net_in = np.array([board.to_numpy_array()])
         neural_net_out = self.neural_net.predict(neural_net_in)[0]
-        a = np.argsort(neural_net_out)[-size:]
-        b = np.sort(neural_net_out)[-size:]
-        print('\n'.join(map(str, zip(a, b))))
+        if print_out:
+            b = neural_net_out.argsort()
+            a = neural_net_out[b]
+            print('\t'.join(reversed(list(map(str, zip(b, a))))))
         return np.argsort(neural_net_out)[-size:]
 
     def load(self, name):
@@ -87,18 +86,18 @@ class SingleNet:
 
     def replay(self):
         inputs, expected = [], []
-        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 1024))
+        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 512))
 
         for s, r, a, ns in random_batch:
             inputs.append(s)
             prediction = self.neural_net.predict(np.array([ns]))[0]
             best_prediction = prediction.max()
             e = r + gamma * best_prediction
-            prediction[int(a)] = e
+            prediction[a] = e
             expected.append(prediction)
 
         if len(inputs) != 0:
-            self.neural_net.train_on_batch(np.array(inputs), np.array(expected))  # , verbose=0)
+            self.neural_net.fit(np.array(inputs), np.array(expected), verbose=0, epochs=6)
             print(len(self.replay_memory))
 
 
@@ -121,7 +120,23 @@ def encode(action):
 
 nnet = SingleNet(width * height + 1)
 
-reward = Reward(16, 20)
+reward = Reward(55, 60)
+
+
+def monte_carlo(board, size):
+    if size == 0:
+        return 0, 0
+    mem = []
+    for action in nnet.predict_batch(board, size):
+        next_board = board.add(decode(action)).next()
+        bad_board = board.next()
+        r = reward(board, next_board, bad_board)
+        _, r_next = monte_carlo(next_board, size // 2)
+        r += r_next
+        mem.append((r, action))
+    mem.sort(key=itemgetter(0))
+    return mem[-1]
+
 
 with open('cudo.json', 'a') as out_file:
     nnet.load('q_nnet.be')
@@ -136,20 +151,11 @@ with open('cudo.json', 'a') as out_file:
                     continue
                 bad_board, next_board, action, r = board.next(), None, None, None
                 if np.random.rand() < exp_rate:
-                    best_actions = []
-                    for action in nnet.predict_batch(board, width * height):
-                        action = decode(action)
-                        nb = board.add(action).next()
-                        r = reward(board, nb, bad_board)
-                        best_actions.append((r, action, nb))
-                    best_actions.sort(key=itemgetter(0))
-                    best_actions = best_actions[-width:]
-                    for r, action, nb in best_actions:
-                        nnet.remember(board.to_numpy_array(), r, encode(action), nb.to_numpy_array())
+                    action = list(random_board(1))[0]
                     is_random = True
                 else:
-                    nnet.predict_batch(board, 5)
-                    a = nnet.predict(board)
+                    _, a = monte_carlo(board, 8)
+                    nnet.predict_batch(board, width * height + 1, True)
                     print(a)
                     action = decode(a)
                     is_random = False
