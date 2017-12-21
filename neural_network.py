@@ -1,20 +1,20 @@
 import os
 import random
+from operator import itemgetter
 
 import numpy as np
 from keras import Sequential
-from keras.layers import Conv2D, Flatten, Dense, Dropout, LeakyReLU, MaxPooling2D
-from keras.optimizers import Adam
+from keras.layers import Conv2D, Flatten, Dense, Dropout, LeakyReLU
 
 from game_of_life import FocusArea, GameOfLife
 
 width, height = 8, 8
 focus_area = FocusArea(max_col=width, max_row=height)
-number_of_epochs = 1000
-game_iterations = 512
-exploration_rate = 0.4
+number_of_epochs = 10000
+game_iterations = 1000
+exploration_rate = 0.2
 cells_to_add = 5
-gamma = 0.9
+gamma = 0.5
 
 
 class Reward:
@@ -50,7 +50,7 @@ class SingleNet:
             neural_net.add(Dropout(0.5))
         neural_net.add(Dense(size, activation='linear'))
 
-        neural_net.compile(optimizer='sgd', loss='mse')
+        neural_net.compile(optimizer='rmsprop', loss='mse')
 
         self.neural_net = neural_net
         self.replay_memory = []
@@ -68,6 +68,9 @@ class SingleNet:
     def predict_batch(self, board, size):
         neural_net_in = np.array([board.to_numpy_array()])
         neural_net_out = self.neural_net.predict(neural_net_in)[0]
+        a = np.argsort(neural_net_out)[-size:]
+        b = np.sort(neural_net_out)[-size:]
+        print('\n'.join(map(str, zip(a, b))))
         return np.argsort(neural_net_out)[-size:]
 
     def load(self, name):
@@ -84,7 +87,7 @@ class SingleNet:
 
     def replay(self):
         inputs, expected = [], []
-        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 512))
+        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 1024))
 
         for s, r, a, ns in random_batch:
             inputs.append(s)
@@ -118,7 +121,7 @@ def encode(action):
 
 nnet = SingleNet(width * height + 1)
 
-reward = Reward(55, 60)
+reward = Reward(16, 20)
 
 with open('cudo.json', 'a') as out_file:
     nnet.load('q_nnet.be')
@@ -133,10 +136,19 @@ with open('cudo.json', 'a') as out_file:
                     continue
                 bad_board, next_board, action, r = board.next(), None, None, None
                 if np.random.rand() < exp_rate:
-                    action = tuple(random_board(1))[0]
+                    best_actions = []
+                    for action in nnet.predict_batch(board, width * height):
+                        action = decode(action)
+                        nb = board.add(action).next()
+                        r = reward(board, nb, bad_board)
+                        best_actions.append((r, action, nb))
+                    best_actions.sort(key=itemgetter(0))
+                    best_actions = best_actions[-width:]
+                    for r, action, nb in best_actions:
+                        nnet.remember(board.to_numpy_array(), r, encode(action), nb.to_numpy_array())
                     is_random = True
                 else:
-                    print(nnet.predict_batch(board, 10))
+                    nnet.predict_batch(board, 5)
                     a = nnet.predict(board)
                     print(a)
                     action = decode(a)
