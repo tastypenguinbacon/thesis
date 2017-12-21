@@ -4,15 +4,15 @@ from operator import itemgetter
 
 import numpy as np
 from keras import Sequential
-from keras.layers import Conv2D, Flatten, Dense, Dropout, LeakyReLU
+from keras.layers import Conv2D, Flatten, Dense, Dropout
 
 from game_of_life import FocusArea, GameOfLife
 
 width, height = 16, 16
 focus_area = FocusArea(max_col=width, max_row=height)
-number_of_epochs = 10000
+number_of_epochs = 100000
 game_iterations = 1000
-exploration_rate = 0.1
+exploration_rate = 0.01
 cells_to_add = 5
 gamma = 0.5
 
@@ -23,25 +23,23 @@ class Reward:
         self.max_cells = max_cells
 
     def __call__(self, brd, nxt, bad):
-        # count = len(brd)
-        count_next = len(nxt)
-        count = len(bad)
+        count_next, count = len(nxt), len(bad)
         if count < count_next < self.min_cells or count > count_next > self.max_cells:
             return np.abs(count_next - count) * 10
         if self.min_cells < count_next < self.max_cells:
             return - (count_next - self.min_cells) * (count_next - self.max_cells) * 10
+        if np.all(nxt.to_numpy_array() == bad.to_numpy_array()):
+            return -20
         return -np.abs(count_next - count) * 10
 
 
 class SingleNet:
     def __init__(self, size):
         neural_net = Sequential()
-        neural_net.add(Conv2D(filters=32, kernel_size=(3, 3), input_shape=(width, height, 1), activation='relu'))
+        neural_net.add(Conv2D(filters=32, kernel_size=(5, 5), input_shape=(width, height, 1), activation='relu'))
         neural_net.add(Dropout(0.5))
-        neural_net.add(Conv2D(64, (3, 3), activation='relu'))
+        neural_net.add(Conv2D(64, (5, 5), activation='relu'))
         neural_net.add(Flatten())
-        # neural_net.add(Dropout(0.5))
-        # neural_net.add(Flatten())
 
         for i in range(5):
             neural_net.add(Dense(64, bias_initializer='ones', activation='relu'))
@@ -120,16 +118,16 @@ def encode(action):
 
 nnet = SingleNet(width * height + 1)
 
-reward = Reward(55, 60)
+reward = Reward(4, 8)
 
 
 def monte_carlo(board, size):
     if size == 0:
         return 0, 0
     mem = []
+    bad_board = board.next()
     for action in nnet.predict_batch(board, size):
         next_board = board.add(decode(action)).next()
-        bad_board = board.next()
         r = reward(board, next_board, bad_board)
         _, r_next = monte_carlo(next_board, size // 2)
         r += r_next
@@ -145,7 +143,9 @@ with open('cudo.json', 'a') as out_file:
             exp_rate = exploration_rate
             board = GameOfLife(focus_area, random_board())
             print('[', end='', file=out_file)
+            x = []
             for j in range(game_iterations):
+                x.append(len(board))
                 print(len(board), end=',', file=out_file)
                 if len(board) == 0:
                     continue
@@ -167,6 +167,8 @@ with open('cudo.json', 'a') as out_file:
                 print(board)
                 board = next_board
                 nnet.replay()
-
+            import matplotlib.pyplot as plt
+            plt.plot(x)
+            plt.show()
             print('],', file=out_file, flush=True)
             nnet.save('q_nnet.be')
