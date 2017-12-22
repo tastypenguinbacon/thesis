@@ -39,9 +39,11 @@ class SingleNet:
         neural_net.add(Conv2D(filters=32, kernel_size=(5, 5), input_shape=(width, height, 1), activation='relu'))
         neural_net.add(Dropout(0.5))
         neural_net.add(Conv2D(64, (5, 5), activation='relu'))
+        neural_net.add(Dropout(0.5))
+        neural_net.add(Conv2D(128, (5, 5), activation='relu'))
         neural_net.add(Flatten())
 
-        for i in range(5):
+        for i in range(4):
             neural_net.add(Dense(64, bias_initializer='ones', activation='relu'))
             neural_net.add(Dropout(0.5))
         neural_net.add(Dense(size, activation='linear'))
@@ -168,6 +170,7 @@ with open('cudo.json', 'a') as out_file:
                 board = next_board
                 nnet.replay()
             import matplotlib.pyplot as plt
+
             plt.plot(x)
             plt.show()
             print('],', file=out_file, flush=True)
