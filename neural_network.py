@@ -1,20 +1,14 @@
-import os
-import random
-from operator import itemgetter
-
 import numpy as np
-from keras import Sequential
-from keras.layers import Conv2D, Flatten, Dense, Dropout
 
+from agents import DQN
 from game_of_life import FocusArea, GameOfLife
 
-width, height = 16, 16
+width, height = 8, 8
 focus_area = FocusArea(max_col=width, max_row=height)
-number_of_epochs = 100000
-game_iterations = 1000
-exploration_rate = 0.01
-cells_to_add = 5
-gamma = 0.5
+number_of_epochs = 1000
+game_iterations = 200
+exploration_rate = 0.2
+gamma = 0.9
 
 
 class Reward:
@@ -23,82 +17,38 @@ class Reward:
         self.max_cells = max_cells
 
     def __call__(self, brd, nxt, bad):
-        count_next, count = len(nxt), len(bad)
-        if count < count_next < self.min_cells or count > count_next > self.max_cells:
-            return np.abs(count_next - count) * 10
-        if self.min_cells < count_next < self.max_cells:
-            return - (count_next - self.min_cells) * (count_next - self.max_cells) * 10
-        if np.all(nxt.to_numpy_array() == bad.to_numpy_array()):
-            return -20
-        return -np.abs(count_next - count) * 10
+        mid = (self.min_cells + self.max_cells) / 2
+        dif = (self.max_cells - self.min_cells) / 2
+        cnt, bad_cnt, add = len(nxt), len(bad), 0
+        if self.min_cells <= len(brd) <= self.max_cells and \
+                (cnt < self.min_cells or cnt > self.max_cells):
+            add = -10
+        elif np.all(brd.to_numpy_array() == nxt.to_numpy_array()) and \
+                (cnt < self.min_cells or cnt > self.max_cells):
+            add = -10
+        elif np.all(brd.to_numpy_array() == bad.to_numpy_array()) and \
+                (cnt < self.min_cells or cnt > self.max_cells) and \
+                        cnt == len(brd):
+            add = -10
+        elif cnt < self.min_cells:
+            add = (cnt - bad_cnt) / 10
+        elif cnt > self.max_cells:
+            add = (bad_cnt - cnt) / 10
+        else:
+            add = 10
+        return -np.abs(cnt - mid) + dif + add
 
 
-class SingleNet:
-    def __init__(self, size):
-        neural_net = Sequential()
-        neural_net.add(Conv2D(filters=32, kernel_size=(5, 5), input_shape=(width, height, 1), activation='relu'))
-        neural_net.add(Dropout(0.5))
-        neural_net.add(Conv2D(64, (5, 5), activation='relu'))
-        neural_net.add(Dropout(0.5))
-        neural_net.add(Conv2D(128, (5, 5), activation='relu'))
-        neural_net.add(Flatten())
+class BinaryReward:
+    def __init__(self, min_cells, max_cells):
+        self.min_cells = min_cells
+        self.max_cells = max_cells
 
-        for i in range(4):
-            neural_net.add(Dense(64, bias_initializer='ones', activation='relu'))
-            neural_net.add(Dropout(0.5))
-        neural_net.add(Dense(size, activation='linear'))
-
-        neural_net.compile(optimizer='rmsprop', loss='mse')
-
-        self.neural_net = neural_net
-        self.replay_memory = []
-
-        self.i = 0
-
-    def predict(self, board):
-        neural_net_in = np.array([board.to_numpy_array()])
-        neural_net_out = self.neural_net.predict(neural_net_in)[0]
-        if np.isnan(neural_net_out).any():
-            print('NANANANANANNANANA BATMAN')
-        print('min, max: ', np.min(neural_net_out), np.max(neural_net_out))
-        return np.argmax(neural_net_out)
-
-    def predict_batch(self, board, size, print_out=False):
-        neural_net_in = np.array([board.to_numpy_array()])
-        neural_net_out = self.neural_net.predict(neural_net_in)[0]
-        if print_out:
-            b = neural_net_out.argsort()
-            a = neural_net_out[b]
-            print('\t'.join(reversed(list(map(str, zip(b, a))))))
-        return np.argsort(neural_net_out)[-size:]
-
-    def load(self, name):
-        if os.path.isfile(name):
-            self.neural_net.load_weights(name)
-
-    def save(self, name):
-        self.neural_net.save_weights(name)
-
-    def remember(self, state, reward, action, next_state):
-        if np.all(state == next_state) and reward > 0:
-            self.replay_memory.append((state, 1000, action, next_state))
-        self.replay_memory.append((state, reward, action, next_state))
-
-    def replay(self):
-        inputs, expected = [], []
-        random_batch = random.sample(self.replay_memory, min(len(self.replay_memory), 512))
-
-        for s, r, a, ns in random_batch:
-            inputs.append(s)
-            prediction = self.neural_net.predict(np.array([ns]))[0]
-            best_prediction = prediction.max()
-            e = r + gamma * best_prediction
-            prediction[a] = e
-            expected.append(prediction)
-
-        if len(inputs) != 0:
-            self.neural_net.fit(np.array(inputs), np.array(expected), verbose=0, epochs=6)
-            print(len(self.replay_memory))
+    def __call__(self, brd, nxt, bad):
+        if self.min_cells <= len(nxt) <= self.max_cells:
+            return 5
+        else:
+            return -0.1
 
 
 def random_board(size=None):
@@ -108,70 +58,34 @@ def random_board(size=None):
     return zip(rows, cols)
 
 
-def decode(outs):
-    # outs, = outs
-    row, col = outs // width, outs % width
-    return row, col
+def deep_q_learning():
+    reward = BinaryReward(12, 16)
+    name = 'cudo.be'
+    nnet = DQN(params={'input_size': (height, width),
+                       'exploration_probability': exploration_rate,
+                       'batch_size': 2 ** 8,
+                       'epochs': 1,
+                       'learning_rate': gamma,
+                       'max_mem': 2 ** 15})
+    nnet.load(name)
+    for i in range(number_of_epochs):
+        board = GameOfLife(focus_area, random_board())
+        for j in range(game_iterations):
+            print(list(np.sort(nnet.neural_net.predict(np.array([board.to_numpy_array()]))[0])[-10:]))
+            print(list(np.argsort(nnet.neural_net.predict(np.array([board.to_numpy_array()]))[0])[-10:]))
+            print(board)
+            if len(board) == 0:
+                break
+            bad_board = board.next()
+            action = nnet.propose_action(board)
+            next_board = board.add(*action).next()
+            r = reward(board, next_board, bad_board)
+            print((i, j), action, r, len(nnet.memory), len(board), '->', len(next_board))
+            nnet.remember((board, action, r, next_board))
+            board = next_board
+            nnet.learn()
+        nnet.save(name)
 
 
-def encode(action):
-    return action[0] * width + action[1]
-
-
-nnet = SingleNet(width * height + 1)
-
-reward = Reward(4, 8)
-
-
-def monte_carlo(board, size):
-    if size == 0:
-        return 0, 0
-    mem = []
-    bad_board = board.next()
-    for action in nnet.predict_batch(board, size):
-        next_board = board.add(decode(action)).next()
-        r = reward(board, next_board, bad_board)
-        _, r_next = monte_carlo(next_board, size // 2)
-        r += r_next
-        mem.append((r, action))
-    mem.sort(key=itemgetter(0))
-    return mem[-1]
-
-
-with open('cudo.json', 'a') as out_file:
-    nnet.load('q_nnet.be')
-    if __name__ == '__main__':
-        for i in range(number_of_epochs):
-            exp_rate = exploration_rate
-            board = GameOfLife(focus_area, random_board())
-            print('[', end='', file=out_file)
-            x = []
-            for j in range(game_iterations):
-                x.append(len(board))
-                print(len(board), end=',', file=out_file)
-                if len(board) == 0:
-                    continue
-                bad_board, next_board, action, r = board.next(), None, None, None
-                if np.random.rand() < exp_rate:
-                    action = list(random_board(1))[0]
-                    is_random = True
-                else:
-                    _, a = monte_carlo(board, 8)
-                    nnet.predict_batch(board, width * height + 1, True)
-                    print(a)
-                    action = decode(a)
-                    is_random = False
-
-                next_board = board.add(action).next()
-                r = reward(board, next_board, bad_board)
-                nnet.remember(board.to_numpy_array(), r, encode(action), next_board.to_numpy_array())
-                print((i, j), len(board), action, r, is_random, sep='\t\t')
-                print(board)
-                board = next_board
-                nnet.replay()
-            import matplotlib.pyplot as plt
-
-            plt.plot(x)
-            plt.show()
-            print('],', file=out_file, flush=True)
-            nnet.save('q_nnet.be')
+if __name__ == '__main__':
+    deep_q_learning()
