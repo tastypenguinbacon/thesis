@@ -1,14 +1,14 @@
 import numpy as np
 
-from agents import DQN, ActorCritic
+from agents import ActorCritic
 from game_of_life import FocusArea, GameOfLife
 
 width, height = 8, 8
 focus_area = FocusArea(max_col=width, max_row=height)
 number_of_epochs = 4000
-game_iterations = 100
-exploration_rate = 0.5
-gamma = 0.5
+game_iterations = 400
+exploration_rate = 1
+gamma = 0.9
 
 
 class Reward:
@@ -16,11 +16,15 @@ class Reward:
         self.min_cells = min_cells
         self.max_cells = max_cells
 
-    def __call__(self, brd, nxt, bad):
+    def __call__(self, nxt, action):
         mid = (self.min_cells + self.max_cells) / 2
         dif = (self.max_cells - self.min_cells) / 2
-        cnt, bad_cnt, add = len(nxt), len(bad), 0
-        return -np.abs(cnt - mid) + dif + add
+        cnt = len(nxt)
+        outside = 0
+        for row, col in action:
+            if not row in range(height) or col not in range(width):
+                outside -= 10
+        return -np.abs(cnt - mid) + dif + outside
 
 
 class BinaryReward:
@@ -58,8 +62,8 @@ def deep_q_learning():
         'width': width,
         'height': height,
         'gamma': gamma,
-        'batch_size': 128,
-        'exploration_rate': 0.2,
+        'batch_size': 512,
+        'exploration_rate': exploration_rate,
         'cells_to_add': 3
     })
 
@@ -70,30 +74,30 @@ def deep_q_learning():
         board = GameOfLife(focus_area, random_board())
         bad = board
         rand_board = [board] * 20
-        nnet.params['exploration_rate'] = exploration_rate
-        # exploration_rate *= 0.9
+        nnet.params['exploration_rate'] *= 0.95
         for j in range(game_iterations):
-            print(board)
             if 12 <= len(board) <= 16:
                 cnt += 1
             if 12 <= len(bad) <= 16:
                 bad_cnt += 1
             bad = bad.next()
-            bad_board = board.next()
             for i in range(20):
                 if 12 <= len(rand_board[i]) <= 16:
                     cnt_rand[i] += 1
                 rand_board[i] = rand_board[i].add(*nnet.propose_action(board, True)).next()
             action = nnet.propose_action(board)
             next_board = board.add(*action).next()
-            r = reward(board, next_board, bad_board)
-
-            print((c, j), action, r, len(nnet.memory), len(board), '->', len(next_board))
-            print(cnt, bad_cnt, cnt_rand)
+            r = reward(next_board, action)
+            if c * game_iterations + j > 512 * 4:
+                print(board)
+                print((c, j), nnet.params['exploration_rate'], action, r, len(nnet.memory), len(board), '->',
+                      len(next_board))
+                print(cnt, bad_cnt, cnt_rand)
 
             nnet.remember((board, action, r, next_board))
             board = next_board
-            nnet.learn()
+            if j % 10 == 0:
+                nnet.learn()
         nnet.save(name)
 
 

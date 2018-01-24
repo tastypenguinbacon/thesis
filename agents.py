@@ -8,11 +8,7 @@ from keras import Sequential
 from keras.layers import Conv2D, Flatten, Dense, LeakyReLU, Dropout, Concatenate
 from keras.optimizers import Adam
 import tensorflow as tf
-
 from keras import backend as K
-
-
-# K.set_learning_phase(1)
 
 
 class DQN:
@@ -74,7 +70,6 @@ class DQN:
         for i in range(4):
             neural_net.add(Dense(512, bias_initializer='ones'))
             neural_net.add(LeakyReLU(0.1))
-            neural_net.add(Dropout(0.5))
         neural_net.add(Dense(height * width + 1, activation='linear'))
         neural_net.compile(optimizer='adam', loss='mse')
 
@@ -118,7 +113,7 @@ class ActorCritic:
 
         grads = list(zip(self.actor_grads, actor_model_weights))
 
-        self.optimize = tf.train.AdamOptimizer().apply_gradients(grads)
+        self.optimize = tf.train.AdamOptimizer(learning_rate=0.0001, epsilon=0.01).apply_gradients(grads)
 
         self.critic_state_input, self.critic_action_input, self.critic_model = self.create_critic_model()
 
@@ -129,55 +124,52 @@ class ActorCritic:
     def create_actor_model(self):
         state_input = Input(shape=self.input_shape)
 
-        nnet = Conv2D(filters=64, kernel_size=(3, 3))(state_input)
-        nnet = LeakyReLU(0.1)(nnet)
-        nnet = Conv2D(filters=128, kernel_size=(3, 3))(nnet)
-        nnet = LeakyReLU(0.1)(nnet)
-        nnet = Conv2D(filters=256, kernel_size=(3, 3))(nnet)
-        nnet = LeakyReLU(0.1)(nnet)
+        nnet = Conv2D(filters=64, kernel_size=(3, 3), padding='same')(state_input)
+        nnet = LeakyReLU(0.01)(nnet)
+        nnet = Conv2D(filters=128, kernel_size=(3, 3), padding='same')(nnet)
+        nnet = LeakyReLU(0.01)(nnet)
+        nnet = Conv2D(filters=256, kernel_size=(3, 3), padding='same')(nnet)
+        nnet = LeakyReLU(0.01)(nnet)
         nnet = Flatten()(nnet)
 
-        for i in range(2):
-            nnet = Dense(64, bias_initializer='ones')(nnet)
-            nnet = LeakyReLU(0.1)(nnet)
+        for i in range(6):
+            nnet = Dense(512)(nnet)
+            nnet = LeakyReLU(0.01)(nnet)
 
         output = Dense(self.action_size, activation='sigmoid')(nnet)
         model = Model(input=state_input, output=output)
-        model.compile(loss="mse", optimizer=Adam())
+        model.compile(loss="mse", optimizer=Adam(lr=0.0001, epsilon=0.01, clipnorm=1.))
 
         return state_input, model
 
     def create_critic_model(self):
         state_input = Input(shape=self.input_shape)
 
-        nnet = Conv2D(filters=64, kernel_size=(3, 3))(state_input)
-        nnet = LeakyReLU(0.1)(nnet)
-        nnet = Conv2D(filters=128, kernel_size=(3, 3))(nnet)
-        nnet = LeakyReLU(0.1)(nnet)
-        nnet = Conv2D(filters=256, kernel_size=(3, 3))(nnet)
-        nnet = LeakyReLU(0.1)(nnet)
+        nnet = Conv2D(filters=64, kernel_size=(3, 3), padding='same')(state_input)
+        nnet = LeakyReLU(0.01)(nnet)
+        nnet = Conv2D(filters=128, kernel_size=(3, 3), padding='same')(nnet)
+        nnet = LeakyReLU(0.01)(nnet)
+        nnet = Conv2D(filters=256, kernel_size=(3, 3), padding='same')(nnet)
+        nnet = LeakyReLU(0.01)(nnet)
         nnet = Flatten()(nnet)
 
-        for i in range(2):
-            nnet = Dense(128, bias_initializer='ones')(nnet)
-            nnet = LeakyReLU(0.1)(nnet)
-
         action_input = Input(shape=(self.action_size,))
-        action_h1 = Dense(48, bias_initializer='ones')(action_input)
-        action_h1 = LeakyReLU(0.1)(action_h1)
-        action_h1 = Dense(48, bias_initializer='ones')(action_h1)
-        action_h1 = LeakyReLU(0.1)(action_h1)
+        action_h1 = Dense(512, bias_initializer='ones')(action_input)
+        action_h1 = LeakyReLU(0.01)(action_h1)
 
-        merged = Concatenate()([nnet, action_h1])
-        merged_h1 = Dense(24, bias_initializer='ones')(merged)
-        merged_h1 = LeakyReLU(0.1)(merged_h1)
-        merged_h2 = Dense(24, bias_initializer='ones')(merged_h1)
-        merged_h2 = LeakyReLU(0.1)(merged_h2)
-        output = Dense(1, activation='linear')(merged_h2)
+        for i in range(4):
+            action_h1 = Dense(512, bias_initializer='ones')(action_h1)
+            action_h1 = LeakyReLU(0.01)(action_h1)
+
+        merged_h1 = Concatenate()([nnet, action_h1])
+        for i in range(6):
+            merged_h1 = Dense(512, bias_initializer='ones')(merged_h1)
+            merged_h1 = LeakyReLU(0.01)(merged_h1)
+
+        output = Dense(1, activation='linear')(merged_h1)
 
         model = Model(input=[state_input, action_input], output=output)
-
-        model.compile(loss="mse", optimizer=Adam())
+        model.compile(loss="mse", optimizer=Adam(lr=0.0001, epsilon=0.01, clipnorm=1.))
         return state_input, action_input, model
 
     def remember(self, transition):
@@ -188,14 +180,17 @@ class ActorCritic:
 
     def learn(self):
         batch_size = self.params['batch_size']
-        if len(self.memory) < batch_size * 8:
+        if len(self.memory) < batch_size * 4:
             return
+        if len(self.memory) > batch_size * 8:
+            self.memory = self.memory[::4]
         samples = random.sample(self.memory, batch_size)
         self._train_critic(samples)
         self._train_actor(samples)
 
     def _train_actor(self, samples):
-        cur_state = np.array(list(zip(*samples))[0])
+        samples = list(zip(*samples))
+        cur_state = np.array(samples[0])
         predicted_action = self.actor_model.predict(cur_state)
         grads = self.sess.run(self.critic_grads, feed_dict={
             self.critic_state_input: cur_state,
@@ -234,13 +229,13 @@ class ActorCritic:
 
     def __encode(self, action):
         encoded = list(zip(*action))
-        rows = list(np.array(encoded[0]).astype(np.float32) / self.params['height'])
-        cols = list(np.array(encoded[1]).astype(np.float32) / self.params['width'])
+        rows = list(np.array(encoded[0]).astype(np.float32) / (self.params['height'] - 1))
+        cols = list(np.array(encoded[1]).astype(np.float32) / (self.params['width'] - 1))
         encoded = rows + cols
         return np.array(encoded)
 
     def __decode(self, action):
-        rows = np.round(np.array(action[:len(action) // 2]) * self.params['height']).astype(np.int32)
-        cols = np.round(np.array(action[len(action) // 2:]) * self.params['width']).astype(np.int32)
+        rows = np.round(np.array(action[:len(action) // 2]) * (self.params['height'] - 1)).astype(np.int32)
+        cols = np.round(np.array(action[len(action) // 2:]) * (self.params['width'] - 1)).astype(np.int32)
         ans = list(zip(rows, cols))
         return ans
