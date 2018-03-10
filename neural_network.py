@@ -75,6 +75,8 @@ def deep_q_learning():
         bad = board
         rand_board = [board] * 20
         nnet.params['exploration_rate'] *= 0.95
+        if nnet.params['exploration_rate'] < 10 ** -3:
+            nnet.params['exploration_rate'] = 1
         for j in range(game_iterations):
             if 12 <= len(board) <= 16:
                 cnt += 1
