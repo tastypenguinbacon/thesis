@@ -31,6 +31,7 @@ class GameOfLife:
     def next(self):
         next_generation = set()
         cells_to_consider = self.board | set(chain(*map(neighbors, self.board)))
+
         for cell in cells_to_consider:
             neighbor_count = sum(neigh in self.board for neigh in neighbors(cell))
             if neighbor_count == 3 or (neighbor_count == 2 and cell in self.board):
